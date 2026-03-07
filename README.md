@@ -15,7 +15,12 @@ Play the game on [Itch.io](https://s4g.itch.io/exodus)!
 I worked as a Game Engineer, primarily responsible for gameplay aspects and the game’s UI, such as feature implementation, sound intergration and the development of menu systems (main menu, pause menu, settings, etc.).
 
 ## Highlights
-- ...
+- **[GunScript](/Assets/Scripts/Weapon/GunScript.cs)** <br/>
+Manages the current state of the player's weapon. Gun stats are configured through the WeaponData class. This Code was Co-Developed
+- **[Wave Mechanic](/Assets/Scripts/GameManager/WaveMechanic.cs)** <br/>
+Handles the end-of-round gameplay loop. Each wave spawns a set of enemies, which you have to clear them all to win.
+- **[Player Input Controller](/Assets/Scripts/Player/PlayerInputController.cs)** <br/>
+Uses Unity's new Input System, exposing a getter for easy access across other scripts.
 
 ## Built With
 - **C#** (Core Language)
