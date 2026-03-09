@@ -60,11 +60,8 @@ public class WaveMechanic : MonoBehaviour
                 stopSpawning = true;
             }
             
-            
-            
             yield return new WaitForSeconds(randomness);
         }
-        
     }
 
     private void OnEnemyKilled()
