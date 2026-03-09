@@ -7,8 +7,6 @@ using Random = UnityEngine.Random;
 
 public class WaveMechanic : MonoBehaviour
 {
-    
-    
     [SerializeField] private float randomness = 1.0f;
     [SerializeField] private SpawnPoint[] spawnPoints;
     [SerializeField] private float maxOfEnemies;
@@ -75,8 +73,6 @@ public class WaveMechanic : MonoBehaviour
         remainingEnemiesToKill--;
         onUpdateMission?.Invoke(remainingEnemiesToKill);
     }
-    
-
 
     private void Start()
     {
@@ -99,5 +95,4 @@ public class WaveMechanic : MonoBehaviour
         }
         return amount;
     }
-    
 }
