@@ -16,7 +16,7 @@ I worked as a Game Engineer, primarily responsible for gameplay aspects and the 
 
 ## Highlights
 - **[GunScript](/Assets/Scripts/Weapon/GunScript.cs)** <br/>
-Manages the current state of the player's weapon. Gun stats are configured through the WeaponData class. This Code was Co-Developed
+Manages the current state of the player's weapon. Gun stats are configured through the [WeaponData](Assets/Scripts/Weapon/GunScriptComponents/WeaponData.cs) class. This Code was Co-Developed
 - **[Wave Mechanic](/Assets/Scripts/GameManager/WaveMechanic.cs)** <br/>
 Handles the end-of-round gameplay loop. Each wave spawns a set of enemies, which you have to clear them all to win.
 - **[Player Input Controller](/Assets/Scripts/Player/PlayerInputController.cs)** <br/>
