@@ -10,7 +10,6 @@ public class GunScript : Subject, IWorldSwitchListener
     [Header("___________________Weapon Data__________________")]
     [SerializeField, Tooltip("Create Weapon Data in Menu (Create/Custom Menu/Weapon Data )")]
     private WeaponData weaponData;
-    //private RecoilHandler recoilHandler = new RecoilHandler();
     
     [Header("_____________________Objects____________________")]
     [SerializeField] private RaycastBullet raycastBullet;
@@ -38,16 +37,16 @@ public class GunScript : Subject, IWorldSwitchListener
     private float xSpread;
     private float ySpread;
     [SerializeField] private LayerMask opponentLayer;
-    private string currentShootAnimation = "Shooting1";
     private bool playHeavenAnimationAfterReloading = false;
     [SerializeField] private GameObject gunModel;
 
-    // tutorial variables
+    // Tutorial Variables
     private bool inStartAnimation;
-    // weapon Cooldown
+    
+    // Weapon Cooldown
     private float nextFireTime;
 
-    // world switch
+    // World Switch
     private bool isInHellWorld;
     
     // Getter
@@ -130,7 +129,6 @@ public class GunScript : Subject, IWorldSwitchListener
         FireBullets();
         shoot?.Invoke();
         UpdateAmmo(true);
-       
 
         if (currentAmmo <= 0)
         {
@@ -172,15 +170,13 @@ public class GunScript : Subject, IWorldSwitchListener
         ammoReserve -= 2;
         currentAmmo = weaponData.magazineCapacity;
         UpdateAmmo(true);
-        //updateCrystalInWeapon?.Invoke(currentAmmo, ammoReserve);
         enableCrystal?.Invoke(true);
     }
 
-    public IEnumerator CoroutineReload()
+    private IEnumerator CoroutineReload()
     {
         isReloading = true;
         animator.ChangeAnimation("Reload", 0.0f, 0.0f);
-        PlayReloadSound();
         ammoReserve -= 2;
         currentAmmo = weaponData.magazineCapacity;
         UpdateAmmo(true);
@@ -194,14 +190,6 @@ public class GunScript : Subject, IWorldSwitchListener
             playHeavenAnimationAfterReloading = false;
         }
 
-    }
-
-    public void PlayReloadSound()
-    {
-        ////SoundManager.PlaySoundWithDelay(SoundType.CLIPOUT ,0.5f, 0f);
-        //SoundManager.PlaySoundWithDelay(SoundType.COVERUP, 0.5f, 0.25f);
-        //SoundManager.PlaySoundWithDelay(SoundType.CLIPIN, 0.3f, 0.58f);
-        //SoundManager.PlaySoundWithDelay(SoundType.COVERDOWN, 0.5f, 0.47f);
     }
 
     public void OnPlayReloadSound(int index)
@@ -233,12 +221,7 @@ public class GunScript : Subject, IWorldSwitchListener
             InstantReload();
         }
     }
-
-    public void DisableGun()
-    {
-        
-    }
-
+    
     public void OnSwitchWorld(bool isInHellWorld)
     {
         if(inStartAnimation) return;
@@ -253,7 +236,7 @@ public class GunScript : Subject, IWorldSwitchListener
         }
         else if (!isReloading)
         {
-            if (animator != null)
+            if (animator)
             {
                 animator.ForcePlay(isInHellWorld ? "SwitchToHellWorld" : "SwitchToHeavenWorld");
             }
