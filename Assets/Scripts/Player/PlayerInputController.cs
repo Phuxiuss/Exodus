@@ -13,7 +13,6 @@ public class PlayerInputController : MonoBehaviour
     // Player Map Action
     private InputActionMap playerMap;
  
-    
     // All Actions
     private InputAction moveAction;
     private InputAction jumpAction;
@@ -47,10 +46,6 @@ public class PlayerInputController : MonoBehaviour
         InitializeInput();
 
         Debug.Log("jump action enabled" + jumpAction.enabled);
-    
-
-        // player map needs to be disabled after a short elay, for some reaseon the player map is enabled again by something else after being disabled
-        //StartCoroutine(DisablePlayerActionMapAfterDelay());
     }
     
     private void OnEnable()
