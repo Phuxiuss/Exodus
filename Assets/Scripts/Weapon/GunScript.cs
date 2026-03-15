@@ -1,21 +1,23 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
-
 
 [RequireComponent(typeof(WeaponAnimatonController))]
 public class GunScript : Subject, IWorldSwitchListener
 {
-    [Header("___________________Weapon Data__________________")]
-    [SerializeField, Tooltip("Create Weapon Data in Menu (Create/Custom Menu/Weapon Data )")]
+    [Header("Weapon Data")]
+    [SerializeField, Tooltip("Create Weapon Data in Menu (Create/Custom Menu/Weapon Data)")]
     private WeaponData weaponData;
-    
-    [Header("_____________________Objects____________________")]
+
+    [Header("Objects")]
     [SerializeField] private RaycastBullet raycastBullet;
     [SerializeField] private GameObject bulletSpawnPoint;
     [SerializeField] private UnityEvent shoot;
     [SerializeField] private UnityEvent<bool> enableCrystal;
+    [SerializeField] private LayerMask opponentLayer;
+    [SerializeField] private GameObject gunModel;
 
     private WeaponAnimatonController animator;
 
@@ -23,33 +25,23 @@ public class GunScript : Subject, IWorldSwitchListener
     public static Action<float, float> shot;
     public static Action startAnimationFinished;
     public static Action<int, int> updateCrystalInWeapon;
-    private int maxAmmo;
 
-    // Real time changes
+    private int maxAmmo;
     private int currentAmmo;
     private bool isReloading;
-    private bool isEquippingOrUnequipping = false;
-    private bool isCoroutineRunning;
+    private bool isTransitioning;
+    private bool isInStartAnimation;
     private float currentEquipTime;
-    
-    public int ammoReserve { get; set; }
     private float currentReloadTime;
     private float xSpread;
     private float ySpread;
-    [SerializeField] private LayerMask opponentLayer;
-    private bool playHeavenAnimationAfterReloading = false;
-    [SerializeField] private GameObject gunModel;
-
-    // Tutorial Variables
-    private bool inStartAnimation;
-    
-    // Weapon Cooldown
     private float nextFireTime;
-
-    // World Switch
+    private bool pendingHeavenAnimation;
     private bool isInHellWorld;
-    
-    // Getter
+
+    public int ammoReserve { get; set; }
+
+    // Getters
     public GunType GetGunType => weaponData.gunType;
     public int MagazineCapacity => weaponData.magazineCapacity;
     public int CurrentAmmo => currentAmmo;
@@ -57,8 +49,10 @@ public class GunScript : Subject, IWorldSwitchListener
     public float CurrentReloadTime => currentReloadTime;
     public float ReloadTime => weaponData.reloadTime;
     public bool IsReloading => isReloading;
-    public int AmmoReserve =>  ammoReserve;
+    public int AmmoReserve => ammoReserve;
     public int MaxAmmo => maxAmmo;
+
+    public enum ReloadSoundIndex { CoverUp = 1, ClipIn = 2, CoverDown = 3, ClipOut = 4 }
 
 
     public void Start()
@@ -71,7 +65,6 @@ public class GunScript : Subject, IWorldSwitchListener
     {
         WorldSwitcher.switchWorld += OnSwitchWorld;
         TutorialHandler.triggerStartAnimation += OnTriggerStartAnimation;
-   
     }
 
     private void OnDisable()
@@ -83,63 +76,17 @@ public class GunScript : Subject, IWorldSwitchListener
     public void Update()
     {
         nextFireTime -= Time.deltaTime;
-        
-        if (isEquippingOrUnequipping)
+
+        if (isTransitioning)
         {
             currentEquipTime -= Time.deltaTime;
-            
-
             if (currentEquipTime <= 0)
-            {
-                isEquippingOrUnequipping = false;
-                //Debug.Log("Equipped");
-            }
+                isTransitioning = false;
         }
     }
-    
-    private void FireBullets()
-    { 
-        for (int i = 0; i < weaponData.bulletsPerShot; i++) // bullets per shot
-        {
-            ySpread = weaponData.maxYSpread; 
-            
-            var newBullet = Instantiate(raycastBullet, bulletSpawnPoint.transform.position, bulletSpawnPoint.transform.rotation);
-            newBullet.Fire(xSpread, ySpread, opponentLayer, weaponData.damage); 
-        }
 
+    // Setup
 
-        float cooldown = weaponData.fireRate;
-        
-        if (!weaponData.infiniteAmmo)
-        {
-            currentAmmo--;
-        }
-
-        nextFireTime = cooldown;
-        animator.ForcePlay("Shooting");
-       
-        SoundManager.PlaySound(SoundType.SHOOT);
-        
-    }
-    
-    public void Shoot()
-    {
-        // fire Rate & current ammo check
-        if (nextFireTime >= 0 || currentAmmo == 0 || !gameObject.active || isEquippingOrUnequipping) return;
-        FireBullets();
-        shoot?.Invoke();
-        UpdateAmmo(true);
-
-        if (currentAmmo <= 0)
-        {
-            Reload();
-        }
-
-        updateCrystalInWeapon?.Invoke(currentAmmo, ammoReserve);
-        shot?.Invoke(ammoReserve, currentAmmo);
-
-    }
-    
     private void Initialize()
     {
         maxAmmo = weaponData.maxAmmo;
@@ -151,24 +98,74 @@ public class GunScript : Subject, IWorldSwitchListener
         updateAmmo?.Invoke(currentAmmo, ammoReserve, weaponData.magazineCapacity, weaponData.weaponName, isReloading, false);
     }
 
+    // Shoot
+
     public void PullTrigger()
     {
-        if (isReloading || currentAmmo <= 0 || !isInHellWorld || isEquippingOrUnequipping) return;
+        if (isReloading || currentAmmo <= 0 || !isInHellWorld || isTransitioning) return;
         Shoot();
     }
-    
+
+    public void Shoot()
+    {
+        if (!CanShoot()) return;
+
+        FireBullets();
+        shoot?.Invoke();
+        UpdateAmmo(true);
+        NotifyAmmoChanged();
+
+        if (currentAmmo <= 0)
+            Reload();
+    }
+
+    private bool CanShoot()
+    {
+        return nextFireTime < 0
+            && currentAmmo > 0
+            && gameObject.activeInHierarchy
+            && !isTransitioning;
+    }
+
+    private void FireBullets()
+    {
+        for (int i = 0; i < weaponData.bulletsPerShot; i++)
+        {
+            ySpread = weaponData.maxYSpread;
+            var newBullet = Instantiate(raycastBullet, bulletSpawnPoint.transform.position, bulletSpawnPoint.transform.rotation);
+            newBullet.Fire(xSpread, ySpread, opponentLayer, weaponData.damage);
+        }
+
+        if (!weaponData.infiniteAmmo)
+            currentAmmo--;
+
+        nextFireTime = weaponData.fireRate;
+        animator.ForcePlay("Shooting");
+        SoundManager.PlaySound(SoundType.SHOOT);
+    }
+
+    // Reload
+
     public void Reload()
     {
-        if (ammoReserve <= 0 || currentAmmo >= weaponData.magazineCapacity || isEquippingOrUnequipping || isReloading || !isInHellWorld) return;
+        if (!CanReload()) return;
         reloading?.Invoke();
         StartCoroutine(CoroutineReload());
+    }
+
+    private bool CanReload()
+    {
+        return ammoReserve > 0
+            && currentAmmo < weaponData.magazineCapacity
+            && !isTransitioning
+            && !isReloading
+            && isInHellWorld;
     }
 
     private void InstantReload()
     {
         reloading?.Invoke();
-        ammoReserve -= 2;
-        currentAmmo = weaponData.magazineCapacity;
+        ConsumeReloadAmmo();
         UpdateAmmo(true);
         enableCrystal?.Invoke(true);
     }
@@ -177,81 +174,97 @@ public class GunScript : Subject, IWorldSwitchListener
     {
         isReloading = true;
         animator.ChangeAnimation("Reload", 0.0f, 0.0f);
-        ammoReserve -= 2;
-        currentAmmo = weaponData.magazineCapacity;
+        ConsumeReloadAmmo();
         UpdateAmmo(true);
-        updateCrystalInWeapon?.Invoke(currentAmmo, ammoReserve);
+        NotifyAmmoChanged();
         yield return new WaitForSeconds(weaponData.reloadTime);
         isReloading = false;
-        
-        if (playHeavenAnimationAfterReloading && !isInHellWorld)
+
+        if (pendingHeavenAnimation && !isInHellWorld)
         {
             animator.ChangeAnimation("SwitchToHeavenWorld", 0.5f);
-            playHeavenAnimationAfterReloading = false;
+            pendingHeavenAnimation = false;
         }
-
     }
 
-    public void OnPlayReloadSound(int index)
+    private void ConsumeReloadAmmo()
     {
-        if (index == 1)
-        {
-            SoundManager.PlaySoundWithDelay(SoundType.COVERUP, 0.5f, 0f);
-        }
-        else if (index == 2)
-        {
-            SoundManager.PlaySoundWithDelay(SoundType.CLIPIN, 0.5f, 0f);
-        }
-        else if(index == 3)
-        {
-            SoundManager.PlaySoundWithDelay(SoundType.COVERDOWN, 0.5f, 0f);
-        }
-        else if (index == 4)
-        {
-            SoundManager.PlaySoundWithDelay(SoundType.CLIPOUT, 0.5f, 0f);
-        }
+        ammoReserve -= 2;
+        currentAmmo = weaponData.magazineCapacity;
     }
-    
+
+    // Ammo
+
     public void AddAmmoAmount(int amount)
     {
         ammoReserve += amount;
         UpdateAmmo(false);
         if (currentAmmo == 0)
-        {
             InstantReload();
-        }
     }
-    
+
+    private void UpdateAmmo(bool updateCurrentCrystalImage)
+    {
+        currentAmmo = Mathf.Clamp(currentAmmo, 0, weaponData.magazineCapacity);
+        ammoReserve = Mathf.Clamp(ammoReserve, 0, 9999);
+        updateAmmo?.Invoke(currentAmmo, ammoReserve, weaponData.magazineCapacity, weaponData.weaponName, isReloading, updateCurrentCrystalImage);
+    }
+
+    private void NotifyAmmoChanged()
+    {
+        updateCrystalInWeapon?.Invoke(currentAmmo, ammoReserve);
+        shot?.Invoke(ammoReserve, currentAmmo);
+    }
+
+    // Sound
+
+    public void OnPlayReloadSound(int index)
+    {
+        var soundMap = new Dictionary<ReloadSoundIndex, SoundType>
+        {
+            { ReloadSoundIndex.CoverUp,   SoundType.COVERUP   },
+            { ReloadSoundIndex.ClipIn,    SoundType.CLIPIN    },
+            { ReloadSoundIndex.CoverDown, SoundType.COVERDOWN },
+            { ReloadSoundIndex.ClipOut,   SoundType.CLIPOUT   },
+        };
+
+        if (soundMap.TryGetValue((ReloadSoundIndex)index, out var sound))
+            SoundManager.PlaySoundWithDelay(sound, 0.5f, 0f);
+    }
+
+    // World Switch
+
     public void OnSwitchWorld(bool isInHellWorld)
     {
-        if(inStartAnimation) return;
+        if (isInStartAnimation) return;
 
         this.isInHellWorld = isInHellWorld;
-        
-        if (isInHellWorld && !isReloading) {SoundManager.PlaySound(SoundType.DRAW);}
-        
+
+        if (isInHellWorld && !isReloading)
+            SoundManager.PlaySound(SoundType.DRAW);
+
         if (isReloading && !isInHellWorld)
         {
-            playHeavenAnimationAfterReloading = true;
+            pendingHeavenAnimation = true;
         }
         else if (!isReloading)
         {
-            if (animator)
-            {
+            if (animator != null)
                 animator.ForcePlay(isInHellWorld ? "SwitchToHellWorld" : "SwitchToHeavenWorld");
-            }
-            isEquippingOrUnequipping = true;
+
+            isTransitioning = true;
             currentEquipTime = weaponData.equipTime;
         }
     }
 
+    // Tutorial / Start Animation
+
     private void OnTriggerStartAnimation()
     {
-        // trigger animation
         gunModel.SetActive(false);
         StartCoroutine(TriggerStartAnimationWithDelay());
         enableCrystal?.Invoke(false);
-        inStartAnimation = true;
+        isInStartAnimation = true;
     }
 
     private IEnumerator TriggerStartAnimationWithDelay()
@@ -261,7 +274,6 @@ public class GunScript : Subject, IWorldSwitchListener
         animator.ForcePlay("GameStart");
     }
 
-    // triggered by an animation event in the start anim
     public void OnEnableCrystalInStartAnim()
     {
         enableCrystal?.Invoke(true);
@@ -270,14 +282,7 @@ public class GunScript : Subject, IWorldSwitchListener
     public void OnStartAnimationFinished()
     {
         startAnimationFinished?.Invoke();
-        inStartAnimation = false;
+        isInStartAnimation = false;
         OnSwitchWorld(isInHellWorld);
-    }
-    
-    private void UpdateAmmo(bool updateCurrentCrystalImage)
-    {
-        currentAmmo = Mathf.Clamp(currentAmmo, 0, weaponData.magazineCapacity);
-        ammoReserve = Mathf.Clamp(ammoReserve, 0, 9999);
-        updateAmmo?.Invoke(currentAmmo, ammoReserve, weaponData.magazineCapacity, weaponData.weaponName, isReloading, updateCurrentCrystalImage);
     }
 }

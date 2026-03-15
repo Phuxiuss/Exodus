@@ -20,7 +20,6 @@ public class WeaponHand : MonoBehaviour
         }
         
     }
-
     public void CollectAmmo(int ammo)
     {
         playersWeapon.AddAmmoAmount(ammo);
@@ -39,9 +38,6 @@ public class WeaponHand : MonoBehaviour
     {
         if (PlayerInputController.Instance.ShootAction.IsPressed() && playersWeapon.GetGunType == GunType.Automatic)
         {
-            // TODO clean this code when you have time
-            
-
             PullTheTrigger();
         }
         else if (PlayerInputController.Instance.ShootAction.WasPressedThisFrame() && playersWeapon.GetGunType == GunType.Semi)

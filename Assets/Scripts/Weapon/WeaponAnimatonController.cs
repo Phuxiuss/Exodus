@@ -8,10 +8,6 @@ public class WeaponAnimatonController : MonoBehaviour
 {
     private Animator weaponAnimator;
     private string currentAnimation = "";
-
-    // float shotLength;
-    // int shots = 0;
-    // Transform magazine;
     private void Awake()
     {
         weaponAnimator =  GetComponent<Animator>();
@@ -20,12 +16,6 @@ public class WeaponAnimatonController : MonoBehaviour
 
     public void ChangeAnimation(string animation, float crossfade = 0.2f, float delay = 0f)
     {
-        // if (currentAnimation != animation)
-        // {
-        //     currentAnimation = animation;
-        //     weaponAnimator.CrossFade(animation, crossfade);
-        // }
-        
         if (delay > 0f)
         {
             StartCoroutine(Wait());
@@ -76,43 +66,4 @@ public class WeaponAnimatonController : MonoBehaviour
         
         return true;
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    // public void OnGunShoot()
-    // {
-    //     weaponAnimator.SetTrigger("Shoot");
-    //     // weaponAnimator.SetBool("")
-    // }
-    //
-    //
-    //
-    //
-    //
-    // public void OnGunStoppedShooting()
-    // {
-    //     
-    // }
-    //
-    // public void OnGunReload()
-    // {
-    //
-    // }
-
-    // IEnumerator StopGunAnimation()
-    // {
-    //     yield return new WaitForSeconds(shotLength);
-    //     weaponAnimator.ResetTrigger("IsShooting");
-    //   
-    //
-    //
-    // }
-
 }
